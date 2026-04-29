@@ -1,0 +1,55 @@
+name: "SiteGround Cache Manager"
+description: "Purge SiteGround caches via SSH+WP-CLI (shared hosting) or Site Tools API (agency)."
+author: "FKW Digital <hello@fkwdigital.com>"
+runs:
+  using: "node20"
+  main: "dist/index.js"
+
+branding:
+  icon: "zap"
+  color: "blue"
+
+inputs:
+  MODE:
+    description: "Operation mode: 'ssh' (default, shared hosting via SG Optimizer + WP-CLI) or 'api' (agency-tier Site Tools API)"
+    required: false
+    default: "ssh"
+  CACHE_TYPE:
+    description: "Cache to purge: 'all' (default), 'dynamic' (NGINX/SG Optimizer), or 'memcached' (WP object cache)"
+    required: false
+    default: "all"
+
+  # SSH mode inputs
+  SSH_PRIVATE_KEY:
+    description: "[ssh] Private key contents. Required when MODE=ssh."
+    required: false
+  SSH_PASSPHRASE:
+    description: "[ssh] Passphrase for the SSH private key (required by SiteGround for keys created in Site Tools)"
+    required: false
+  KNOWN_HOSTS:
+    description: "[ssh] Contents of ~/.ssh/known_hosts for the remote server. Obtain via: ssh-keyscan -H -p 18765 your-host. Strongly recommended."
+    required: false
+  REMOTE_HOST:
+    description: "[ssh] SSH host (SiteGround server hostname or IP). Required when MODE=ssh."
+    required: false
+  REMOTE_USER:
+    description: "[ssh] SSH username (your SiteGround SSH user). Required when MODE=ssh."
+    required: false
+  REMOTE_PORT:
+    description: "[ssh] SSH port (SiteGround default is 18765)"
+    default: "18765"
+  REMOTE_PATH:
+    description: "[ssh] Absolute path to the WordPress install on the server (e.g. /home/customer/www/example.com/public_html). Required when MODE=ssh."
+    required: false
+
+  # API mode inputs
+  SITEGROUND_API_TOKEN:
+    description: "[api] OAuth bearer token for the SiteGround Site Tools API. Required when MODE=api."
+    required: false
+  SITEGROUND_SITE_ID:
+    description: "[api] Site ID from Site Tools. Required when MODE=api."
+    required: false
+  SITEGROUND_API_BASE:
+    description: "[api] API base URL (override only if SiteGround changes endpoints)"
+    required: false
+    default: "https://api.siteground.com/v00"

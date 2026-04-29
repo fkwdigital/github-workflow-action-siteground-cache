@@ -1,0 +1,14 @@
+*~
+.DS_Store
+.svn
+.cvs
+*.bak
+*.swp
+.idea
+*.swo
+Thumbs.db
+*.log
+node_modules
+.env
+.env*
+logs
