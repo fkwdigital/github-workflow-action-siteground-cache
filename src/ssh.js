@@ -41,7 +41,10 @@ function addSshKey(key, name) {
   validateDir(sshDir);
   validateFile(path.join(sshDir, 'known_hosts'));
   const filePath = path.join(sshDir, name || 'siteground_cache_key');
-  fs.writeFileSync(filePath, key, { encoding: 'utf8', mode: 0o600 });
+  // openssh refuses to load a private key without a trailing newline ("error in
+  // libcrypto") — secrets pasted into github often lack one
+  const contents = key.endsWith('\n') ? key : `${key}\n`;
+  fs.writeFileSync(filePath, contents, { encoding: 'utf8', mode: 0o600 });
   return filePath;
 }
 
