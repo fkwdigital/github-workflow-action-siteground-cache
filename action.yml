@@ -2,7 +2,7 @@ name: "SiteGround Cache Manager"
 description: "Purge SiteGround caches via SSH+WP-CLI (shared hosting) or Site Tools API (agency)."
 author: "FKW Digital <hello@fkwdigital.com>"
 runs:
-  using: "node20"
+  using: "node24"
   main: "dist/index.js"
 
 branding:

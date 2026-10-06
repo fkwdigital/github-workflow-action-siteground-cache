@@ -1,3 +1,5 @@
+const { DEFAULT_API_URL } = require('./apiPurge');
+
 const VALID_MODES = ['ssh', 'api'];
 const VALID_CACHE_TYPES = ['all', 'dynamic', 'memcached'];
 
@@ -7,7 +9,7 @@ const VALID_CACHE_TYPES = ['all', 'dynamic', 'memcached'];
  *
  * @since 1.0.0
  * @param {string} key      - environment variable name
- * @param {string} fallback - value to return if the key is unset or empty
+ * @param {string} [fallback] - value to return if the key is unset or empty
  * @returns {string}
  */
 function fromEnv(key, fallback = '') {
@@ -31,6 +33,7 @@ function getInputs() {
     key: fromEnv('SSH_PRIVATE_KEY'),
     passphrase: fromEnv('SSH_PASSPHRASE', ''),
     knownHosts: fromEnv('KNOWN_HOSTS', ''),
+    keyName: fromEnv('DEPLOY_KEY_NAME', 'siteground_cache_key'),
     host: fromEnv('REMOTE_HOST'),
     user: fromEnv('REMOTE_USER'),
     port: fromEnv('REMOTE_PORT', '18765'),
@@ -39,7 +42,7 @@ function getInputs() {
     // api mode
     apiToken: fromEnv('SITEGROUND_API_TOKEN'),
     siteId: fromEnv('SITEGROUND_SITE_ID'),
-    apiBase: fromEnv('SITEGROUND_API_BASE', 'https://api.siteground.com/v00')
+    apiBase: fromEnv('SITEGROUND_API_BASE', DEFAULT_API_URL)
   };
 }
 

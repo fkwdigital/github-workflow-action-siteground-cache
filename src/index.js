@@ -1,74 +1,62 @@
-const fs = require('fs');
-
 const { getInputs, assertRequired } = require('./inputs');
-const { addSshKey, writeKnownHosts, removePassphrase } = require('./ssh');
+const { addSshKey, removeSshKey, writeKnownHosts, removePassphrase } = require('./ssh');
 const { runRemotePurge } = require('./sshPurge');
 const { purgeViaApi } = require('./apiPurge');
 
-// path to the written key file — set in main(), scrubbed on exit
+// path to the written key file — set in purgeViaSsh(), removed on exit
 let deployKeyPath = null;
+process.on('exit', () => removeSshKey(deployKeyPath));
 
 /**
- * Delete the private key file on process exit.
+ * Purge caches over SSH + WP-CLI: write the key and known_hosts, unlock the key, run the purge.
  *
- * @since 1.0.0
- * @returns {void}
+ * @since 1.1.0
+ * @param {object} cfg - configuration object from getInputs()
+ * @returns {Promise<void>}
  */
-function cleanup() {
-  if (deployKeyPath) {
-    try {
-      fs.unlinkSync(deployKeyPath);
-    } catch (e) {
-      /* already gone */
-    }
+async function purgeViaSsh(cfg) {
+  const keyPath = addSshKey(cfg.key, cfg.keyName);
+  deployKeyPath = keyPath;
+
+  if (cfg.knownHosts) {
+    writeKnownHosts(cfg.knownHosts);
+  } else {
+    console.warn(
+      '⚠️  [SSH] KNOWN_HOSTS is not set — host key verification is disabled.'
+        + ' Set KNOWN_HOSTS (via ssh-keyscan -H -p 18765 <host>) to protect against MITM attacks.'
+    );
   }
+
+  if (cfg.passphrase) {
+    await removePassphrase(keyPath, cfg.passphrase);
+  }
+
+  await runRemotePurge(cfg, keyPath);
 }
-process.on('exit', cleanup);
 
 /**
- * Main entry point.
- *
- * Dispatches to either SSH+WP-CLI mode (default, shared hosting) or the
- * Site Tools API (agency-tier) based on the MODE input.
+ * Dispatch to SSH+WP-CLI mode (default, shared hosting) or the Site Tools API (agency-tier) based on MODE.
  *
  * @since 1.0.0
  * @returns {Promise<void>}
  */
 async function main() {
-  try {
-    const cfg = getInputs();
-    assertRequired(cfg);
+  const cfg = getInputs();
+  assertRequired(cfg);
 
-    console.log(`[SiteGround] Mode: ${cfg.mode}`);
-    console.log(`[SiteGround] Cache type: ${cfg.cacheType}`);
+  console.log(`[SiteGround] Mode: ${cfg.mode}`);
+  console.log(`[SiteGround] Cache type: ${cfg.cacheType}`);
 
-    if (cfg.mode === 'ssh') {
-      const keyPath = addSshKey(cfg.key, 'siteground_cache_key');
-      deployKeyPath = keyPath;
-
-      if (cfg.knownHosts) {
-        writeKnownHosts(cfg.knownHosts);
-      } else {
-        console.warn(
-          '⚠️  [SSH] KNOWN_HOSTS is not set — host key verification is disabled.'
-            + ' Set KNOWN_HOSTS (via ssh-keyscan -H -p 18765 <host>) to protect against MITM attacks.'
-        );
-      }
-
-      if (cfg.passphrase) {
-        await removePassphrase(keyPath, cfg.passphrase);
-      }
-
-      await runRemotePurge(cfg, keyPath);
-    } else {
-      await purgeViaApi(cfg);
-    }
-
-    process.exit(0);
-  } catch (error) {
-    console.error('⚠️  [SiteGround] Error:', error.message);
-    process.exit(1);
+  if (cfg.mode === 'ssh') {
+    await purgeViaSsh(cfg);
+  } else {
+    await purgeViaApi(cfg);
   }
 }
 
-main();
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.error('⚠️  [SiteGround] Error:', error.message);
+    process.exit(1);
+  });

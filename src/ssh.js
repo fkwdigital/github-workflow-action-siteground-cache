@@ -3,49 +3,43 @@ const fs = require('fs');
 const os = require('os');
 const { spawn } = require('child_process');
 
-/**
- * Ensure a directory exists, creating it (recursively) if not.
- *
- * @since 1.0.0
- * @param {string} dir - absolute directory path
- * @returns {void}
- */
-function validateDir(dir) {
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-}
+const { validateDir, validateFile } = require('./helpers');
 
 /**
- * Ensure a file exists, creating an empty one with mode 0600 if not.
+ * Write a private key into ~/.ssh with 0600 permissions and make sure known_hosts exists.
  *
  * @since 1.0.0
- * @param {string} filePath - absolute file path
- * @returns {void}
- */
-function validateFile(filePath) {
-  if (!fs.existsSync(filePath)) {
-    fs.writeFileSync(filePath, '', { encoding: 'utf8', mode: 0o600 });
-  }
-}
-
-/**
- * Write a private key to ~/.ssh/<name> with mode 0600 and return its path.
- *
- * @since 1.0.0
- * @param {string} key  - raw private key contents
- * @param {string} name - filename to use under ~/.ssh
+ * @param {string} key    - raw private key contents
+ * @param {string} [name] - key file name inside ~/.ssh
+ * @param {string} [home] - home directory to use
  * @returns {string} absolute path to the written key file
  */
-function addSshKey(key, name) {
-  const home = process.env.HOME || os.homedir();
+function addSshKey(key, name = 'siteground_cache_key', home = process.env.HOME || os.homedir()) {
   const sshDir = path.join(home, '.ssh');
   validateDir(sshDir);
   validateFile(path.join(sshDir, 'known_hosts'));
-  const filePath = path.join(sshDir, name || 'siteground_cache_key');
-  // openssh refuses to load a private key without a trailing newline ("error in
-  // libcrypto") — secrets pasted into github often lack one
-  const contents = key.endsWith('\n') ? key : `${key}\n`;
-  fs.writeFileSync(filePath, contents, { encoding: 'utf8', mode: 0o600 });
+
+  // openssh rejects keys with crlf endings or no trailing newline, which pasted secrets often have
+  const normalized = `${key.replace(/\r\n?/g, '\n').trim()}\n`;
+  const filePath = path.join(sshDir, name);
+  fs.writeFileSync(filePath, normalized, { encoding: 'utf8', mode: 0o600 });
   return filePath;
+}
+
+/**
+ * Delete a private key file, ignoring a key that is already gone.
+ *
+ * @since 1.1.0
+ * @param {string|null} filePath - absolute path to the key file
+ * @returns {void}
+ */
+function removeSshKey(filePath) {
+  if (!filePath) return;
+  try {
+    fs.unlinkSync(filePath);
+  } catch (e) {
+    // already gone
+  }
 }
 
 /**
@@ -54,15 +48,14 @@ function addSshKey(key, name) {
  *
  * @since 1.0.0
  * @param {string} knownHosts - raw known_hosts lines
+ * @param {string} [home]     - home directory to use
  * @returns {void}
  */
-function writeKnownHosts(knownHosts) {
-  const home = process.env.HOME || os.homedir();
+function writeKnownHosts(knownHosts, home = process.env.HOME || os.homedir()) {
   const sshDir = path.join(home, '.ssh');
   validateDir(sshDir);
-  const knownHostsPath = path.join(sshDir, 'known_hosts');
-  const entry = knownHosts.endsWith('\n') ? knownHosts : `${knownHosts}\n`;
-  fs.appendFileSync(knownHostsPath, entry, { encoding: 'utf8', mode: 0o600 });
+  const entry = `${knownHosts.replace(/\r\n?/g, '\n').trim()}\n`;
+  fs.appendFileSync(path.join(sshDir, 'known_hosts'), entry, { encoding: 'utf8', mode: 0o600 });
   console.log('[SSH] known_hosts written — strict host key verification enabled');
 }
 
@@ -82,6 +75,7 @@ function removePassphrase(keyPath, passphrase) {
     proc.stderr.on('data', (d) => {
       stderr += d.toString();
     });
+    proc.on('error', reject);
     proc.on('close', (code) => {
       if (code !== 0) {
         reject(new Error(`ssh-keygen failed (exit ${code}): ${stderr}`));
@@ -95,8 +89,7 @@ function removePassphrase(keyPath, passphrase) {
 
 module.exports = {
   addSshKey,
+  removeSshKey,
   writeKnownHosts,
-  removePassphrase,
-  validateDir,
-  validateFile
+  removePassphrase
 };

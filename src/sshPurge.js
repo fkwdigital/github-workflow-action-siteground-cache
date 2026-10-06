@@ -65,6 +65,7 @@ function runRemotePurge(cfg, keyPath) {
       process.stderr.write(d);
     });
 
+    proc.on('error', reject);
     proc.on('close', (code) => {
       if (code !== 0) {
         reject(new Error(`ssh exited with code ${code}`));

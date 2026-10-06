@@ -1,3 +1,5 @@
+const DEFAULT_API_URL = 'https://api.siteground.com/v00';
+
 /**
  * Map a CACHE_TYPE value to the Site Tools API resource segment(s) to purge.
  *
@@ -83,5 +85,6 @@ async function purgeViaApi(cfg) {
 
 module.exports = {
   purgeViaApi,
-  resourcesForCacheType
+  resourcesForCacheType,
+  DEFAULT_API_URL
 };

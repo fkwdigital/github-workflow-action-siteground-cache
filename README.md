@@ -137,7 +137,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Deploy via rsync
         uses: fkwdigital/github-workflow-action-ubuntu-rsync@v1
@@ -229,7 +229,7 @@ The Site Tools API endpoint structure may differ depending on your agency tier. 
 
 ## License
 
-MIT
+GPL-3.0-or-later. See [LICENSE](LICENSE).
 
 ## Support
 
